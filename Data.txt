@@ -1,0 +1,4 @@
+manage.py superuser
+username : 2297072
+email : 2297072c@student.gla.ac.uk
+password : ognar559
