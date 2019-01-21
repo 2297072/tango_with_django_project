@@ -1,2 +1,0 @@
-Data.txt
-db.sqlite3
