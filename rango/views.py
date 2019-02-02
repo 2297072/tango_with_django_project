@@ -8,14 +8,14 @@ from rango.forms import UserForm, UserProfileForm
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.contrib.auth import logout
-
+from datetime import datetime
 # Import the Category model
 from rango.models import Category
 from rango.models import Page
 
 @login_required
 def restricted(request):
-    return HttpResponse("Since you're logged in, you can see this text!")
+    return render(request, 'rango/restricted.html')
 
 # Use the login_required() decorator to ensure only those logged in can
 # access the view.
@@ -27,6 +27,8 @@ def user_logout(request):
     return HttpResponseRedirect(reverse('index'))
 
 def index(request):
+    #request.session.set_test_cookie()
+    
 # Query the database for a list of ALL categories currently stored.
 # Order the categories by no. likes in descending order.
 # Retrieve the top 5 only - or all if less than 5.
@@ -39,7 +41,16 @@ def index(request):
 # Render the response and send it back!
     return render(request, 'rango/index.html', context_dict)
 
+# Call the helper function to handle the cookies
+    visitor_cookie_handler(request, response)
+# Return response back to the user, updating any cookies that need changed.
+    return response
+
 def about(request):
+    #if request.session.test_cookie_worked():
+      #  print("TEST COOKIE WORKED!")
+      #  request.session.delete_test_cookie()
+        
     return render(request, 'rango/about.html')
     #return HttpResponse("Rango says here is the about page <a href='/rango/'>Index</a>")
 
@@ -73,49 +84,55 @@ def show_category(request, category_name_slug):
     return render(request, 'rango/category.html', context_dict)
 
 def add_category(request):
-    form = CategoryForm()
-# A HTTP POST?
-    if request.method == 'POST':
-        form = CategoryForm(request.POST)
-# Have we been provided with a valid form?
-        if form.is_valid():
-# Save the new category to the database.
-            form.save(commit=True)
-# Now that the category is saved
-# We could give a confirmation message
-# But since the most recent category added is on the index page
-# Then we can direct the user back to the index page.
-            return index(request)
-    else:
-# The supplied form contained errors -
-# just print them to the terminal.
-        print(form.errors)
-# Will handle the bad form, new form, or no form supplied cases.
-# Render the form with error messages (if any).
-    return render(request, 'rango/add_category.html', {'form': form})
-
-def add_page(request, category_name_slug):
-    try:
-        category = Category.objects.get(slug=category_name_slug)
-    except Category.DoesNotExist:
-        category = None
-        
-    form = PageForm()
-    if request.method == 'POST':
-        form = PageForm(request.POST)
-        if form.is_valid():
-            if category:
-                page = form.save(commit=False)
-                page.category = category
-                page.views = 0
-                page.save()
-                return show_category(request, category_name_slug)
+    if request.user.is_authenticated():
+        form = CategoryForm()
+    # A HTTP POST?
+        if request.method == 'POST':
+            form = CategoryForm(request.POST)
+    # Have we been provided with a valid form?
+            if form.is_valid():
+    # Save the new category to the database.
+                form.save(commit=True)
+    # Now that the category is saved
+    # We could give a confirmation message
+    # But since the most recent category added is on the index page
+    # Then we can direct the user back to the index page.
+                return index(request)
         else:
+    # The supplied form contained errors -
+    # just print them to the terminal.
             print(form.errors)
+    # Will handle the bad form, new form, or no form supplied cases.
+    # Render the form with error messages (if any).
+        return render(request, 'rango/add_category.html', {'form': form})
+    else:
+        return HttpResponse("You are not logged in!")
+    
+def add_page(request, category_name_slug):
+    if request.user.is_authenticated():
+        try:
+            category = Category.objects.get(slug=category_name_slug)
+        except Category.DoesNotExist:
+            category = None
             
-    context_dict = {'form':form, 'category': category}
-    return render(request, 'rango/add_page.html', context_dict)
-
+        form = PageForm()
+        if request.method == 'POST':
+            form = PageForm(request.POST)
+            if form.is_valid():
+                if category:
+                    page = form.save(commit=False)
+                    page.category = category
+                    page.views = 0
+                    page.save()
+                    return show_category(request, category_name_slug)
+            else:
+                print(form.errors)
+                
+        context_dict = {'form':form, 'category': category}
+        return render(request, 'rango/add_page.html', context_dict)
+    else:
+        return HttpResponse("You are not logged in!")
+    
 def register(request):
 # A boolean value for telling the template
 # whether the registration was successful.
@@ -199,10 +216,35 @@ def user_login(request):
         else:
 # Bad login details were provided. So we can't log the user in.
             print("Invalid login details: {0}, {1}".format(username, password))
-            return HttpResponse("Invalid login details supplied.")
+            
+#Authentication failed!
+            return render(request, 'rango/login.html', {'error':True})
+        
 # The request is not a HTTP POST, so display the login form.
 # This scenario would most likely be a HTTP GET.
     else:
 # No context variables to pass to the template system, hence the
 # blank dictionary object...
         return render(request, 'rango/login.html', {})
+
+
+
+def visitor_cookie_handler(request, response):
+# Get the number of visits to the site.
+# We use the COOKIES.get() function to obtain the visits cookie.
+# If the cookie exists, the value returned is casted to an integer.
+# If the cookie doesn't exist, then the default value of 1 is used.
+    visits = int(request.COOKIES.get('visits', '1'))
+    last_visit_cookie = request.COOKIES.get('last_visit', str(datetime.now()))
+    last_visit_time = datetime.strptime(last_visit_cookie[:-7],
+    '%Y-%m-%d %H:%M:%S')
+# If it's been more than a day since the last visit...
+    if (datetime.now() - last_visit_time).seconds > 0:
+        visits = visits + 1
+# Update the last visit cookie now that we have updated the count
+        response.set_cookie('last_visit', str(datetime.now()))
+    else:
+# Set the last visit cookie
+        response.set_cookie('last_visit', last_visit_cookie)
+# Update/set the visits cookie
+    response.set_cookie('visits', visits)
