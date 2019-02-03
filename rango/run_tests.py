@@ -145,7 +145,7 @@ def main(url_git, student_no, date_deadline):
         fp.write('===========================================================================\n\n\n')
 
     # Iterate over commits and run tests
-    for c in commits:
+    for c in commits[-1:]:
         os.chdir(os.path.join(BASE_DIR, TEMP_DIR))
         ret = subprocess.call(GIT_CHKOUT + " " + c, shell=True)
         assert(ret == 0)
