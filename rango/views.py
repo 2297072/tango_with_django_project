@@ -170,7 +170,7 @@ def register(request):
                 profile.save()
     # Update our variable to indicate that the template
     # registration was successful.
-                registered = True
+            registered = True
         else:
     # Invalid form or forms - mistakes or something else?
     # Print problems to the terminal.

@@ -52,8 +52,9 @@ def runtests(in_tests, in_errors):
                 except:
                     err = str(err)
                 if 'error' in err.lower() or 'errors' in err.lower() or 'Traceback' in err or 'Errno' in err:
-                    print('++ FAILED!')
-                    out_errors[key] = temp_test + '\n' + err
+					print(err)
+					print('++ FAILED!')
+					out_errors[key] = temp_test + '\n' + err
                 else:
                     print('++PASSED!')
                     out_tests[ch][key] = True
